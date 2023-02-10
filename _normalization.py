@@ -58,7 +58,7 @@ def normalise(adata:sc.AnnData,
 
 	sc.pp.scale(_adata, max_value=10)
 
-	sc.tl.pca(_adata, svd_solver='arpack',n_comps=50)
+	sc.tl.pca(_adata, svd_solver='arpack',n_comps=50,use_highly_variable=True)
 	sc.pl.pca(_adata, color=batch_key,legend_loc=legend_loc,legend_fontsize=legend_fontsize,show=False)
 
 	_export("normalise" + "_PCA_" + batch_key)
