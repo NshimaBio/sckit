@@ -25,13 +25,14 @@ def qc_hist(adata,
     _adata = adata
     for x in np.unique(_adata.obs.loc[:,batch_key]):
         fig, axs = plt.subplots(1, 4, figsize=(12, 3));
+        _adata2 = _adata[_adata.obs.loc[:,batch_key]==x]
         fig.suptitle(f"Covariates for filtering: {x}");
-        sns.histplot(_adata.obs.total_counts, kde=False, ax=axs[0]);
-        _a1 = bioquest.tl.subset(_adata.obs,subsets={"n_genes_by_counts": f"{n_genes_by_counts[0]}<x<{n_genes_by_counts[1]}"})
+        sns.histplot(_adata2.obs.total_counts, kde=False, ax=axs[0]);
+        _a1 = bioquest.tl.subset(_adata2.obs,subsets={"n_genes_by_counts": f"{n_genes_by_counts[0]}<x<{n_genes_by_counts[1]}"})
         sns.histplot(_a1.total_counts, kde=False, ax=axs[1]);
 
-        sns.histplot(_adata.obs.n_genes_by_counts, kde=False, ax=axs[2]);
-        _a2 = bioquest.tl.subset(_adata.obs,subsets={"total_counts": f"{total_counts[0]}<x<{total_counts[1]}"})
+        sns.histplot(_adata2.obs.n_genes_by_counts, kde=False, ax=axs[2]);
+        _a2 = bioquest.tl.subset(_adata2.obs,subsets={"total_counts": f"{total_counts[0]}<x<{total_counts[1]}"})
         sns.histplot(_a2.n_genes_by_counts, kde=False, ax=axs[3]);
         plt.subplots_adjust(wspace=0.5);
         _export(f"hist_for_{x}")
