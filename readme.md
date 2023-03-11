@@ -1,4 +1,4 @@
-self-defining function for scRNA-seq, snRNA-seq and Spatial Transcriptomics
+self-defining function for scRNA-seq, snRNA-seq and Spatial Transcriptomics.
 
 ```python
 import sckit as sk
