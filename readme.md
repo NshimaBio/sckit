@@ -16,6 +16,7 @@ adata = sk.normalise(adata,batch_key='library_id',flavor="Seurat",n_top_genes=30
 sk.harmony(adata,batch_key='library_id',output_dir=OUTPUT_DIR)
 
 # cell type annotation
+sk.anno_heatmap(adata,marker_df,reference_key="Cluster",figsize=(18,6)):
 sk.label_helper(36)
 sk.labeled(adata,cluster_names=new_cluster_names,reference_key='Cluster',cell_type_key='CellType')
 
