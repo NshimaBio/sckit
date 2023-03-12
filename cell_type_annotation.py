@@ -41,7 +41,7 @@ def anno_heatmap(adata,marker_df,reference_key="Cluster",figsize=(18,6),return_s
     dt = bq.tl.select(adata.obs,columns=[reference_key],pattern="_score$")
     adata.obs = obs
     dt=dt.loc[adata.obs.loc[:,reference_key].sort_values().index,:]
-    a=dt.groupby(by="Cluster").apply(np.median,axis=0)
+    a=dt.groupby(by=reference_key).apply(np.median,axis=0)
     dt2 = pd.DataFrame({x:y for x,y in enumerate(a)},index=bq.st.removes(string=dt.columns[1:],pattern=r"_score$"))
     import seaborn as sns
     sns.clustermap(dt2,method='complete',standard_scale=True,cmap="viridis",figsize=figsize);
