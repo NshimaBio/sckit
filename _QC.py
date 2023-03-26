@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 import bioquest
+from .utils import subset
 from typing import Tuple, Union, Optional
 
 def qc_hist(adata,
@@ -182,3 +183,40 @@ def single_qc_plot(adata,
     #     sc.external.pp.scrublet(_adata, expected_doublet_rate = 0.05, threshold = 0.25,batch_key=batch_key)
     #     sc.external.pl.scrublet_score_distribution(_adata,show=False)
     #     _export("QC_scrublet_score_distribution")
+
+def batch_subset(
+    adata:sc.AnnData,
+    batch_key:str,
+    afilters:dict,
+    ) -> Optional[sc.AnnData] :
+    """
+    """
+    _adata = adata
+    temp_list = []
+    for x in np.unique(_adata.obs.loc[:,batch_key]):
+        _adata2 = _adata[_adata.obs.loc[:,batch_key]==x]
+        temp_list.append(subset(_adata2,afilters.get(x),inplace=False))
+    return sc.concat(temp_list)
+
+def percent_subset(
+    adata:sc.AnnData,
+    batch_key:str,
+    n_genes_by_counts:tuple=(2,98),
+    total_counts:tuple=(2,98),
+    pct_counts_Mito:float=10.0,
+    ) -> Optional[sc.AnnData] :
+    """
+    """
+    _adata = adata
+    temp_list = []
+    for x in np.unique(_adata.obs.loc[:,batch_key]):
+        _adata2 = _adata[_adata.obs.loc[:,batch_key]==x]
+        gene_bottom,gene_up = np.percentile(_adata2.obs.n_genes_by_counts.values, n_genes_by_counts)
+        count_bottom,count_up = np.percentile(_adata2.obs.total_counts.values, total_counts)
+        afilter = {
+            "pct_counts_Mito":f"x<{pct_counts_Mito}",
+            "n_genes_by_counts":f"{gene_bottom}<x<{gene_up}",
+            "total_counts":f"{count_bottom}<x<{count_up}"
+        }
+        temp_list.append(subset(_adata2,afilter,inplace=False))
+    return sc.concat(temp_list)

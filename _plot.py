@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 def cell_ratio(
     adata, 
@@ -14,11 +15,11 @@ def cell_ratio(
     ):
 
     df = adata.obs.loc[:,[x,y]]
-    x_items = df[x].cat.categories.tolist()
-    y_items = df[y].cat.categories.tolist()
+    x_items = sorted(df[x].unique().tolist())
+    y_items = sorted(df[y].unique().tolist())
 
     if palette is None:
-        palette = dict(zip(adata.obs[y].cat.categories, adata.uns[f'{y}_colors']))
+        palette = dict(zip(y_items, adata.uns[f'{y}_colors']))
 
     heights = []
     for x_item in x_items:
@@ -49,4 +50,5 @@ def cell_ratio(
         ax = plt.gca()
         ax.legend(bbox_to_anchor=(1.05, 1),loc='upper left', borderaxespad=0.)
     if od is not None:
-        plt.savefig(od + f'/{x}_{y}_cell_ratio.pdf', dpi=300)
+        plt.savefig(od + f'/{x}_{y}_cell_ratio.pdf', dpi=300,bbox_inches="tight")
+    return pd.DataFrame(heights,columns=y_items,index=x_items)
