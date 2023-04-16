@@ -1,8 +1,9 @@
 from typing import Tuple, Union, Optional
 import scanpy as sc
+import anndata
 import bioquest
 
-def normalise(adata:sc.AnnData,
+def normalise(adata:anndata.AnnData,
 	batch_key:str = "Sample",
 	output_dir:str = './',
 	n_jobs:int = 1,
@@ -21,7 +22,7 @@ def normalise(adata:sc.AnnData,
 	dpi:int = 300,
 	formats:tuple = ('pdf','png'),
 	inplace:bool = True,
-	) -> Optional[sc.AnnData] :
+	) -> Optional[anndata.AnnData] :
 	"""
 	normalise
 	"""

@@ -3,12 +3,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import scanpy as sc
+import anndata
 import matplotlib.pyplot as plt
 
 import pyscenic.aucell
 from pyscenic.utils import GeneSignature
 
-def aucell(adata:sc.AnnData,score_name:str,gene_list:list,use_raw:bool=True):
+def aucell(adata:anndata.AnnData,score_name:str,gene_list:list,use_raw:bool=True):
     if use_raw:
         adata_raw = adata.raw.to_adata()
         exp_mtx=pd.DataFrame(adata_raw.X.toarray(),columns=adata_raw.var_names,index=adata_raw.obs_names)
@@ -30,7 +31,7 @@ def deg(adata,groupby,refKey="rest",pts=True,rank_name="rank_genes_groups",use_r
 	adata.uns['log1p']["base"] = None
 	sc.tl.rank_genes_groups(adata,groupby=groupby,pts=pts,reference=refKey,method=method,use_raw=use_raw,key_added=rank_name)
 
-def deg_df(adata:sc.AnnData,rank_name:str="rank_genes_groups",pts=True,use_raw=True):
+def deg_df(adata:anndata.AnnData,rank_name:str="rank_genes_groups",pts=True,use_raw=True):
 	identy = list(adata.uns[rank_name]['names'].dtype.names)
 	degs = pd.DataFrame({
 		'Score':get_rank_array(adata,'scores',rank_name=rank_name),

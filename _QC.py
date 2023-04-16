@@ -5,6 +5,7 @@ import scanpy as sc
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import anndata
 
 import bioquest
 from .utils import subset
@@ -19,7 +20,7 @@ def qc_hist(adata,
     suffix='',
     dpi = 300,
     formats:Union[str,Tuple[str,...]] = ('pdf',)
-    ) -> Optional[sc.AnnData] :
+    ) -> Optional[anndata.AnnData] :
     """
     """
     _export = bioquest.tl.export(formats=formats,od=output_dir,prefix=prefix,suffix=suffix,dpi=dpi)
@@ -38,7 +39,7 @@ def qc_hist(adata,
         plt.subplots_adjust(wspace=0.5);
         _export(f"hist_for_{x}")
 
-def qcMetrics(adata:sc.AnnData,
+def qcMetrics(adata:anndata.AnnData,
     *,
     batch_key:Optional[str] = None,
     output_dir:str='./',
@@ -52,7 +53,7 @@ def qcMetrics(adata:sc.AnnData,
     dpi = 300,
     inplace:bool = True,
     formats:Union[str,Tuple[str,...]] = ('pdf','png')
-    ) -> Optional[sc.AnnData] :
+    ) -> Optional[anndata.AnnData] :
     """
     qcMetrics
     sk.qcMetrics(adata_spatial,batch_key="Sample",output_dir=OUTPUT_DIR,mitochondrion=True)
@@ -118,7 +119,7 @@ def single_qc_plot(adata,
     suffix='',
     dpi = 300,
     formats:Union[str,Tuple[str,...]] = ('pdf',)
-    ) -> Optional[sc.AnnData] :
+    ) -> Optional[anndata.AnnData] :
     """
     """
     _export = bioquest.tl.export(formats=formats,od=output_dir,prefix=prefix,suffix=suffix,dpi=dpi)
@@ -148,7 +149,7 @@ def single_qc_plot(adata,
             _export(f"scatter_for_{id}")
 
 # def doubletMetrics(
-#     adata:sc.AnnData,
+#     adata:anndata.AnnData,
 #     *,
 #     od:str='./',
 #     prefix:str='',
@@ -156,7 +157,7 @@ def single_qc_plot(adata,
 #     dpi:int = 300,
 #     formats:Union[str,Tuple[str,...]] = ('pdf','png'),
 #     inplace:bool = True,
-#     ) -> Optional[sc.AnnData]:
+#     ) -> Optional[anndata.AnnData]:
 #     """
 #     """
 #     import doubletdetection
@@ -185,10 +186,10 @@ def single_qc_plot(adata,
     #     _export("QC_scrublet_score_distribution")
 
 def batch_subset(
-    adata:sc.AnnData,
+    adata:anndata.AnnData,
     batch_key:str,
     afilters:dict,
-    ) -> Optional[sc.AnnData] :
+    ) -> Optional[anndata.AnnData] :
     """
     """
     _adata = adata
@@ -199,12 +200,12 @@ def batch_subset(
     return sc.concat(temp_list)
 
 def percent_subset(
-    adata:sc.AnnData,
+    adata:anndata.AnnData,
     batch_key:str,
     n_genes_by_counts:tuple=(2,98),
     total_counts:tuple=(2,98),
     pct_counts_Mito:float=10.0,
-    ) -> Optional[sc.AnnData] :
+    ) -> Optional[anndata.AnnData] :
     """
     """
     _adata = adata

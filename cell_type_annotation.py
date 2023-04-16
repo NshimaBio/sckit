@@ -2,17 +2,18 @@ from io import StringIO
 import numpy as np
 import pandas as pd
 import scanpy as sc
+import anndata
 from typing import Optional
 import matplotlib.pyplot as plt
 import bioquest as bq
 
 def labeled(
-	adata: sc.AnnData, 
+	adata: anndata.AnnData, 
 	cluster_names: str, 
 	reference_key: str, 
 	cell_type_key: str = 'CellType', 
 	inplace: bool = True
-	) -> Optional[sc.AnnData]:
+	) -> Optional[anndata.AnnData]:
 	'''
 	labeled(hdata,cluster_names=new_cluster_names,reference_key='leiden',cell_type_key='CellType')
 	'''

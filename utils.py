@@ -1,11 +1,12 @@
 import scanpy as sc
+import anndata
 from typing import Optional, Union
 
 def subset(
-        adata: sc.AnnData,
+        adata: anndata.AnnData,
         subsets: dict,
         inplace: bool = False
-) -> Optional[sc.AnnData]:
+) -> Optional[anndata.AnnData]:
     """
     filter/subset a AnnData according to subsets conditions
     """
