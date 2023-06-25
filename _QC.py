@@ -5,13 +5,13 @@ import scanpy as sc
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import anndata
+import functools
 
 import bioquest
-from .utils import subset
+from .utils import subset, mkdir
 from typing import Tuple, Union, Optional
 
-def qc_hist(adata,
+def qc_hist(adata:sc.AnnData,
     batch_key,
     n_genes_by_counts = (0,4000),
     total_counts = (0,4000),
@@ -20,9 +20,10 @@ def qc_hist(adata,
     suffix='',
     dpi = 300,
     formats:Union[str,Tuple[str,...]] = ('pdf',)
-    ) -> Optional[anndata.AnnData] :
+    ) -> Optional[sc.AnnData] :
     """
     """
+    mkdir(output_dir)
     _export = bioquest.tl.export(formats=formats,od=output_dir,prefix=prefix,suffix=suffix,dpi=dpi)
     _adata = adata
     for x in np.unique(_adata.obs.loc[:,batch_key]):
@@ -39,7 +40,7 @@ def qc_hist(adata,
         plt.subplots_adjust(wspace=0.5);
         _export(f"hist_for_{x}")
 
-def qcMetrics(adata:anndata.AnnData,
+def qcMetrics(adata:sc.AnnData,
     *,
     batch_key:Optional[str] = None,
     output_dir:str='./',
@@ -48,16 +49,19 @@ def qcMetrics(adata:anndata.AnnData,
     mitochondrion:bool=False,
     hemoglobin:bool=False,
     ribosome:bool=False,
+    percent_top = (50,),
+    log1p:bool=True,
     prefix='',
     suffix='',
     dpi = 300,
     inplace:bool = True,
     formats:Union[str,Tuple[str,...]] = ('pdf','png')
-    ) -> Optional[anndata.AnnData] :
+    ) -> Optional[sc.AnnData] :
     """
     qcMetrics
     sk.qcMetrics(adata_spatial,batch_key="Sample",output_dir=OUTPUT_DIR,mitochondrion=True)
     """
+    mkdir(output_dir)
     _export = bioquest.tl.export(formats=formats,od=output_dir,prefix=prefix,suffix=suffix,dpi=dpi)
 
     _adata = adata if inplace else adata.copy()
@@ -78,7 +82,7 @@ def qcMetrics(adata:anndata.AnnData,
     
     qc_vars = np.array(['Mito','Ribo','Hb'])[[mitochondrion,ribosome,hemoglobin]]
     if qc_vars:
-        sc.pp.calculate_qc_metrics(_adata, qc_vars=qc_vars, percent_top=None, log1p=False, inplace=True)
+        sc.pp.calculate_qc_metrics(_adata, qc_vars=qc_vars, percent_top=percent_top, log1p=log1p, inplace=True)
 
     keys = np.array(['total_counts','n_genes_by_counts','pct_counts_Mito','pct_counts_Ribo','pct_counts_HB'])
     ks = keys[[True,True,mitochondrion,ribosome,hemoglobin]]
@@ -119,9 +123,10 @@ def single_qc_plot(adata,
     suffix='',
     dpi = 300,
     formats:Union[str,Tuple[str,...]] = ('pdf',)
-    ) -> Optional[anndata.AnnData] :
+    ) -> Optional[sc.AnnData] :
     """
     """
+    mkdir(output_dir)
     _export = bioquest.tl.export(formats=formats,od=output_dir,prefix=prefix,suffix=suffix,dpi=dpi)
     ks = np.array(['total_counts','n_genes_by_counts','pct_counts_Mito','pct_counts_Ribo','pct_counts_HB'])
     ks = np.intersect1d(ks,adata.obs.columns)
@@ -149,7 +154,7 @@ def single_qc_plot(adata,
             _export(f"scatter_for_{id}")
 
 # def doubletMetrics(
-#     adata:anndata.AnnData,
+#     adata:sc.AnnData,
 #     *,
 #     od:str='./',
 #     prefix:str='',
@@ -157,7 +162,7 @@ def single_qc_plot(adata,
 #     dpi:int = 300,
 #     formats:Union[str,Tuple[str,...]] = ('pdf','png'),
 #     inplace:bool = True,
-#     ) -> Optional[anndata.AnnData]:
+#     ) -> Optional[sc.AnnData]:
 #     """
 #     """
 #     import doubletdetection
@@ -186,10 +191,10 @@ def single_qc_plot(adata,
     #     _export("QC_scrublet_score_distribution")
 
 def batch_subset(
-    adata:anndata.AnnData,
+    adata:sc.AnnData,
     batch_key:str,
     afilters:dict,
-    ) -> Optional[anndata.AnnData] :
+    ) -> Optional[sc.AnnData] :
     """
     """
     _adata = adata
@@ -200,12 +205,12 @@ def batch_subset(
     return sc.concat(temp_list)
 
 def percent_subset(
-    adata:anndata.AnnData,
+    adata:sc.AnnData,
     batch_key:str,
     n_genes_by_counts:tuple=(2,98),
     total_counts:tuple=(2,98),
     pct_counts_Mito:float=10.0,
-    ) -> Optional[anndata.AnnData] :
+    ) -> Optional[sc.AnnData] :
     """
     """
     _adata = adata
@@ -221,3 +226,19 @@ def percent_subset(
         }
         temp_list.append(subset(_adata2,afilter,inplace=False))
     return sc.concat(temp_list)
+
+def mad_filter(adata:sc.AnnData,*metric_nmad: tuple[str,int]):
+    '''
+    use median ± n * mad as indicators to filter out outliers
+    '''
+    from scipy.stats import median_abs_deviation as mad
+    def is_outlier(adata, metric: str, nmads: int):
+        m = adata.obs.loc[:,metric]
+        median_ = m.median()
+        n_mad = mad(m) * nmads
+        outlier = np.logical_or(m < median_ - n_mad, m > median_ + n_mad)
+        return outlier
+    outliers = functools.reduce(np.logical_or,
+        [[is_outlier(adata,x,y)] for x,y in metric_nmad]                                    
+        )
+    return adata[~outliers]

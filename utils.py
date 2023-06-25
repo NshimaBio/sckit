@@ -1,6 +1,12 @@
+import pathlib
 import scanpy as sc
 import anndata
 from typing import Optional, Union
+
+def mkdir(dir:str):
+    d = pathlib.Path(dir)
+    if not d.exists():
+        d.mkdir(parents=True)
 
 def subset(
         adata: anndata.AnnData,

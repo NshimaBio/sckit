@@ -8,31 +8,31 @@ import matplotlib.pyplot as plt
 import bioquest as bq
 
 def labeled(
-	adata: anndata.AnnData, 
-	cluster_names: str, 
-	reference_key: str, 
-	cell_type_key: str = 'CellType', 
-	inplace: bool = True
-	) -> Optional[anndata.AnnData]:
-	'''
-	labeled(hdata,cluster_names=new_cluster_names,reference_key='leiden',cell_type_key='CellType')
-	'''
+    adata: anndata.AnnData, 
+    cluster_names: str, 
+    reference_key: str, 
+    cell_type_key: str = 'CellType', 
+    inplace: bool = True
+    ) -> Optional[anndata.AnnData]:
+    '''
+    labeled(hdata,cluster_names=new_cluster_names,reference_key='leiden',cell_type_key='CellType')
+    '''
 
-	_adata = adata if inplace else adata.copy()
-	_ref_df = _adata.obs.loc[:, [reference_key]]
-	_annot_df = pd.read_csv(StringIO(cluster_names), header=None, dtype='object')
-	_adata.obs[cell_type_key] = pd.merge(
-		_ref_df, _annot_df, left_on=reference_key, right_on=0, how='left')[1].values
-	return None if inplace else _adata
+    _adata = adata if inplace else adata.copy()
+    _ref_df = _adata.obs.loc[:, [reference_key]]
+    _annot_df = pd.read_csv(StringIO(cluster_names), header=None, dtype='object')
+    _adata.obs[cell_type_key] = pd.merge(
+        _ref_df, _annot_df, left_on=reference_key, right_on=0, how='left')[1].values
+    return None if inplace else _adata
 
 
 def label_helper(number_of_cluster: int):
-	'''
-	number_of_cluster: 最后一个cluster的数字
-	'''
-	_s1 = ",\n".join([str(i) for i in range(number_of_cluster+1)])
-	_s2 = "\nnew_cluster_names ='''\n" + _s1 + ",\n'''\n"
-	print(_s2)
+    '''
+    number_of_cluster: 最后一个cluster的数字
+    '''
+    _s1 = ",\n".join([str(i) for i in range(number_of_cluster+1)])
+    _s2 = "\nnew_cluster_names ='''\n" + _s1 + ",\n'''\n"
+    print(_s2)
 
 def anno_heatmap(adata,marker_df,reference_key="Cluster",figsize=(18,6),return_score=False,save_fig=False):
     obs = adata.obs
