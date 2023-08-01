@@ -1,40 +1,32 @@
-from typing import Tuple, Union, Optional
+from typing import Tuple, Union, Optional,List
 import scanpy as sc
 from .utils import subset, mkdir
 import bioquest
 
 def normalise(adata:sc.AnnData,
-    batch_key:str = "Sample",
+    batch_key:str = "SampleID",
     output_dir:str = './',
     n_jobs:int = 1,
     flavor:str = 'Seurat',
     n_top_genes:int = 3000,
     target_sum:int = 10000,
     scale:bool = False,
-    regress_out:Tuple[str] = ('pct_counts_Mito',),
-    legend_loc:str = "right margin", # right margin, on data, 
-    legend_fontsize:str = "small" , # [‘xx-small’, ‘x-small’, ‘small’, ‘medium’, ‘large’, ‘x-large’, ‘xx-large’]
-    n_pcs:int = 30,
-    pca_use_hvg:bool = False,
-    n_neighbors:int = 15,
+    regress_out:Optional[List[str]] = ['pct_counts_Mito'],
     prefix:str = '',
     suffix:str = '',
     dpi:int = 300,
     formats:tuple = ('pdf','png'),
-    inplace:bool = True,
-    ) -> Optional[sc.AnnData] :
+    inplace:bool = False,
+    ) -> Optional[sc.AnnData]:
     """
     normalise
     """
     mkdir(output_dir)
     _export = bioquest.tl.export(formats=formats,od=output_dir,prefix=prefix,suffix=suffix,dpi=dpi)
-
     _adata = adata if inplace else adata.copy()
     _adata.layers["counts"] = _adata.X.copy() # preserve counts
-
     sc.pp.normalize_total(_adata, target_sum=target_sum, inplace=True)
     sc.pp.log1p(_adata,base=None)
-
     if flavor == 'Seurat_v3':
         span = 0.3
         error_status = True
@@ -59,19 +51,7 @@ def normalise(adata:sc.AnnData,
     if regress_out:
         for i in regress_out:
             sc.pp.regress_out(_adata, keys=regress_out, n_jobs=n_jobs)
-
     if scale:
         sc.pp.scale(_adata, max_value=10)
-
-    sc.tl.pca(_adata, svd_solver='arpack',n_comps=50,use_highly_variable=pca_use_hvg)
-    sc.pl.pca(_adata, color=batch_key,legend_loc=legend_loc,legend_fontsize=legend_fontsize,show=False)
-    _export("PCA_" + batch_key)
-    sc.pl.pca_variance_ratio(_adata,n_pcs=50,show=False)
-    _export("PCA_variance_ratio_" + batch_key)
-
-    sc.pp.neighbors(_adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
-    sc.tl.umap(_adata)
-    sc.pl.umap(_adata, color=batch_key,show=False,legend_loc=legend_loc,legend_fontsize=legend_fontsize)
-    _export("UMAP_" + batch_key)
 
     return None if inplace else _adata

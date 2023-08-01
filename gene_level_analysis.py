@@ -5,32 +5,15 @@ import pandas as pd
 import scanpy as sc
 import matplotlib.pyplot as plt
 
-
-def aucell(adata: sc.AnnData, gene_set: dict, use_raw: bool = True, seed: int = 1314):
-    """
-    AUCell uses the Area Under the Curve (AUC) to calculate whether a
-    set of targets is enriched within the molecular readouts of each sample.
-    To do so, AUCell first ranks the molecular features of each sample from
-    highest to lowest value, resolving ties randomly.
-    Then, an AUC can be calculated using by default the top 5% molecular
-    features in the ranking. Therefore, this metric, aucell_estimate, represents
-    the proportion of abundant molecular features in the target set, and their
-    relative abundance value compared to the other features within the sample.
-    """
+def aucell(adata: sc.AnnData, gene_list: list, use_raw: bool = True):
     import decoupler
-
-    net = (
-        pd.DataFrame(dict([(k, pd.Series(v)) for k, v in gene_set.items()]))
-        .melt(var_name="source", value_name="target")
-        .dropna()
-    )
-    decoupler.run_aucell(adata, net=net, seed=seed, use_raw=use_raw)
-
+    net=pd.DataFrame(dict(source=np.array("AAA"),target=gene_list))
+    decoupler.run_aucell(adata,net,source="source",target="target",min_n=1,seed=0,use_raw=use_raw)
+    return adata.obsm["aucell_estimate"].loc[:,"AAA"].to_list()
 
 def get_rank_array(adata, key, rank_name="rank_genes_groups"):
     deg_df = adata.uns[rank_name]
     return np.array(deg_df[key].tolist()).flatten()
-
 
 def deg(
     adata,
@@ -95,37 +78,69 @@ def deg_df(
 
 
 def deseq(
-    adata: sc.AnnData, ref_level: str, design_factors: str, n_jobs: int = 16
-) -> pd.DataFrame:
+    adata: sc.AnnData,
+    cluster_key: str = "CellType",
+    sample_key: str = "Sample",
+    condition_key: str = "Condition",
+    ref_level: str = "Control",
+    n_jobs: int = 20,
+) -> dict:
     """
-    differential expression analysis (DEA) with scRNA-seq data
-    adata: AnnData object with counts X matrix and obs
+    PseudoBulk DESeq2 for scRNA-seq
     """
     from pydeseq2.dds import DeseqDataSet
     from pydeseq2.ds import DeseqStats
+    import functools
 
-    genes_to_keep = adata.X.sum(axis=0) >= 10
-    adata = adata[:, ~genes_to_keep]
+    # remove outliers
+    adata = adata[:, adata.X.sum(axis=0) > 10]
+
+    clinical = (
+        adata.obs.loc[:, [sample_key, condition_key]]
+        .drop_duplicates(subset=sample_key)
+        .set_index(sample_key)
+        .rename(columns={condition_key: "condition"})
+    )
+    clinical.index.name = None
+    case_level = np.setdiff1d(clinical.condition, ref_level)[0]
 
     count_df = adata.to_df()
-    group_df = adata.obs
-    count_df.index.name = None
+    clusters = adata.obs.loc[:, cluster_key]
+    samples = adata.obs.loc[:, sample_key]
 
-    # 构建DeseqDataSet 对象
-    dds = DeseqDataSet(
-        # adata=adata,
-        counts=count_df,
-        clinical=group_df,
-        ref_level=[design_factors, ref_level],
-        design_factors=design_factors,
-        refit_cooks=True,
-        n_cpus=n_jobs,
-    )
-    # 离散度和log fold-change评估.
-    dds.deseq2()
-    # 差异表达统计检验分析
-    stat_res = DeseqStats(
-        dds, alpha=0.05, cooks_filter=True, independent_filter=True, n_cpus=n_jobs
-    )
-    stat_res.summary()
-    return stat_res.results_df.rename(columns={"log2FoldChange": "LFC"})
+    agg_sum = count_df.groupby([clusters, samples]).agg("sum")
+
+    def run_deseq(i, agg_df=agg_sum, clinical=clinical, case=case_level, ref=ref_level,n_jobs=n_jobs):
+        counts = agg_df.loc[i, :]
+        counts.index.name = None
+        _clinical = clinical.loc[counts.index, :]
+
+        # 构建DeseqDataSet 对象
+        dds = DeseqDataSet(
+            counts=counts,
+            clinical=_clinical,
+            ref_level=["condition", ref],
+            design_factors="condition",
+            refit_cooks=True,
+            n_cpus=n_jobs,
+        )
+        # 离散度和log fold-change评估.
+        dds.deseq2()
+        # 差异表达统计检验分析
+        stat_res = DeseqStats(
+            dds,
+            alpha=0.05,
+            cooks_filter=True,
+            contrast=["condition", case, ref],
+            independent_filter=True,
+            n_cpus=n_jobs,
+            joblib_verbosity=0,
+        )
+        stat_res.summary()
+        return stat_res.results_df.reset_index().rename(
+            columns=dict(
+                index="GeneID", log2FoldChange="LFC", padj="FDR", pvalue="Pvalue"
+            )
+        )
+
+    return {x: run_deseq(x) for x in clusters.unique()}

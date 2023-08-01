@@ -34,19 +34,30 @@ def label_helper(number_of_cluster: int):
     _s2 = "\nnew_cluster_names ='''\n" + _s1 + ",\n'''\n"
     print(_s2)
 
-def anno_heatmap(adata,marker_df,reference_key="Cluster",figsize=(18,6),return_score=False,save_fig=False):
+def auc_heatmap(adata,marker,out_prefix,ref_key="Cluster",figsize=(12,6),use_raw=True):
+    import decoupler
+    net=marker.melt(var_name="source",value_name="target").dropna()
+    decoupler.run_aucell(adata,net,source="source",target="target",min_n=1,seed=1314,use_raw=use_raw)
+    dt2=adata.obsm["aucell_estimate"].groupby(by=adata.obs.loc[:,ref_key]).agg(np.mean)
+    import seaborn
+    seaborn.clustermap(dt2.T,method='complete',z_score=0,cmap="viridis",figsize=figsize);
+    plt.savefig(f"{out_prefix}.pdf",bbox_inches='tight')
+    dt2.index.name="CellType"
+    dt2.to_csv(f"{out_prefix}_score.csv.gz")
+
+def score_heatmap(adata,marker_df,reference_key="Cluster",figsize=(9,6),return_score=False,save_fig=False):
     obs = adata.obs
-    markers_dict = {x:np.intersect1d(marker_df.loc[:,x].dropna().values,adata.raw.to_adata().var_names) for x in  marker_df.columns}
+    markers_dict = {x:np.intersect1d(marker_df.loc[:,x].dropna(),adata.raw.var_names) for x in  marker_df.columns}
     for x in markers_dict.keys():
-        sc.tl.score_genes(adata,gene_list=markers_dict[x],score_name=f"{x}_score")
-    dt = bq.tl.select(adata.obs,columns=[reference_key],pattern="_score$")
+        sc.tl.score_genes(adata,gene_list=markers_dict[x],score_name=f"{x}_Marker_Score")
+    dt = bq.tl.select(adata.obs,columns=[reference_key],pattern="_Marker_Score$")
     adata.obs = obs
-    dt=dt.loc[adata.obs.loc[:,reference_key].sort_values().index,:]
-    a=dt.groupby(by=reference_key).apply(np.median,axis=0)
-    dt2 = pd.DataFrame({x:y for x,y in enumerate(a)},index=bq.st.removes(string=dt.columns[1:],pattern=r"_score$"))
+    a=dt.groupby(by=reference_key).apply(np.mean,axis=0)
+    a.columns = bq.st.removes(string=a.columns,pattern=r"_Marker_Score$")
     import seaborn as sns
-    sns.clustermap(dt2,method='complete',standard_scale=True,cmap="viridis",figsize=figsize);
+    sns.clustermap(a.T,method='complete',standard_scale=0,cmap="viridis",figsize=figsize);
     if return_score:
-        return dt2
+        return dt
     if save_fig:
         plt.savefig(f"{save_fig}/anno_heatmap.pdf",bbox_inches='tight')
+    a.to_csv(f"{out_prefix}_score.csv.gz")
