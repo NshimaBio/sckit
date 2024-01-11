@@ -60,6 +60,7 @@ def cell_ratio(
 def plot_batch_effect(adata:sc.AnnData,
     cluster_key:str,
     batch_key:str = "SampleID",
+    resolution: float = 1.0,
     use_rep:Optional[str] = None,
     output_dir:str = './',
     legend_loc:str = "right margin", # right margin, on data, 
@@ -82,6 +83,6 @@ def plot_batch_effect(adata:sc.AnnData,
     sc.pl.umap(adata, color=batch_key,show=False,legend_loc=legend_loc,legend_fontsize=legend_fontsize)
     _export(f"UMAP_{batch_key}")
     
-    sc.tl.leiden(adata, key_added=cluster_key)
+    sc.tl.leiden(adata, key_added=cluster_key, resolution=resolution)
     sc.pl.umap(adata, color=cluster_key,legend_loc="on data",size=20,show=False,legend_fontoutline=3);
     _export(f"UMAP_Cluster");

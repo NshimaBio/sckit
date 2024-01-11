@@ -9,18 +9,18 @@ import functools
 
 import bioquest
 from .utils import subset, mkdir
-from typing import Tuple, Union, Optional
+from typing import Tuple, Union, Optional, List
 
 
 def qc_hist(
     adata: sc.AnnData,
-    batch_key,
+    batch_key: str,
     n_genes_by_counts=(0, 4000),
     total_counts=(0, 4000),
-    output_dir="./",
-    prefix="",
-    suffix="",
-    dpi=300,
+    output_dir: str = "./",
+    prefix: str = "",
+    suffix: str = "",
+    dpi: int = 300,
     formats: Union[str, Tuple[str, ...]] = ("pdf",),
 ) -> Optional[sc.AnnData]:
     """ """
@@ -52,7 +52,14 @@ def qc_hist(
         _export(f"hist_for_{x}")
 
 
-def qcMetrics(
+def delete_genes(
+    adata: sc.AnnData, gene_list: Optional[List[str]], species: Optional[str]
+):
+    if gene_list:
+        pass
+
+
+def fastqc(
     adata: sc.AnnData,
     *,
     batch_key: Optional[str] = None,
@@ -62,11 +69,11 @@ def qcMetrics(
     mitochondrion: bool = False,
     hemoglobin: bool = False,
     ribosome: bool = False,
-    percent_top=(50,),
+    percent_top: str = (50,),
     log1p: bool = True,
-    prefix="",
-    suffix="",
-    dpi=300,
+    prefix: str = "",
+    suffix: str = "",
+    dpi: int = 300,
     inplace: bool = True,
     formats: Union[str, Tuple[str, ...]] = ("pdf", "png"),
 ) -> Optional[sc.AnnData]:
@@ -80,30 +87,31 @@ def qcMetrics(
     )
 
     _adata = adata if inplace else adata.copy()
-
+    # Cell Cycle Phase Classification
+    # cell_phase(_adata)
     if min_cells:
         sc.pp.filter_cells(_adata, min_genes=min_genes)
     if min_cells:
         sc.pp.filter_genes(_adata, min_cells=min_cells)
     if hemoglobin:
         _adata.var.loc[:, "Hb"] = _adata.var_names.isin(
-            ("HBA1", "HBA2", "HBB", "HBD", "HBE1", "HBG1", "HBG2", "HBM", "HBQ1", "HBZ")
+            ("HBA1", "HBA2", "HBB", "HBD", "HBE1",
+             "HBG1", "HBG2", "HBM", "HBQ1", "HBZ")
         )
     if mitochondrion:
         _adata.var.loc[:, "Mito"] = bioquest.st.detects(
             string=_adata.var_names, pattern=r"^mt-", flags=re.I
         )
     if ribosome:
-        _adata.var.loc[:, "Ribo"] = _adata.var_names.str.startswith(r"^RP[SL0-9]")
-    # ribo_url = "http://software.broadinstitute.org/gsea/msigdb/download_geneset.jsp?geneSetName=KEGG_RIBOSOME&fileType=txt"
-    # ribo_genes = pd.read_table(ribo_url, skiprows=2, header = None)
-    # _adata.var['Ribo'] = _adata.var_names.isin(tuple(ribo_genes[0].values))
+        _adata.var.loc[:, "Ribo"] = _adata.var_names.str.startswith(
+            r"^RP[SL0-9]")
 
-    qc_vars = np.array(["Mito", "Ribo", "Hb"])[[mitochondrion, ribosome, hemoglobin]]
-    if qc_vars:
-        sc.pp.calculate_qc_metrics(
-            _adata, qc_vars=qc_vars, percent_top=percent_top, log1p=log1p, inplace=True
-        )
+    qc_vars = tuple(
+        np.array(["Mito", "Ribo", "Hb"])[[mitochondrion, ribosome, hemoglobin]]
+    )
+    sc.pp.calculate_qc_metrics(
+        _adata, qc_vars=qc_vars, percent_top=percent_top, log1p=log1p, inplace=True
+    )
 
     keys = np.array(
         [
@@ -243,44 +251,6 @@ def single_qc_plot(
             _export(f"scatter_for_{id}")
 
 
-# def doubletMetrics(
-#     adata:sc.AnnData,
-#     *,
-#     od:str='./',
-#     prefix:str='',
-#     suffix:str='',
-#     dpi:int = 300,
-#     formats:Union[str,Tuple[str,...]] = ('pdf','png'),
-#     inplace:bool = True,
-#     ) -> Optional[sc.AnnData]:
-#     """
-#     """
-#     import doubletdetection
-#     _adata = adata if inplace else adata.copy()
-#     _export = functools.partial(sckit.tl.export,formats=formats,od=od,prefix=prefix,suffix=suffix,dpi=dpi)
-#     clf = doubletdetection.BoostClassifier()
-#     # raw_counts is a cells by genes count matrix
-#     _adata.obs['doublet'] = clf.fit(_adata.X.copy()).predict()
-#     # higher means more likely to be doublet
-#     _adata.obs['doublet_score'] = clf.doublet_score()
-#     doubletdetection.plot.convergence(clf,
-#         save=od+'/QC_convergence.pdf',
-#         show=False,
-#         p_thresh=1e-16,
-#         voter_thresh=0.5)
-#     doubletdetection.plot.threshold(clf, save=od+'/QC_DoubletDetection_threshold.pdf', show=False, p_step=6)
-#     sc.pl.violin(_adata,"doublet_score",show=False)
-#     _export("QC_doublet_score")
-
-#     return None if inplace else _adata
-
-# # /* doublet */
-# if doublet_method == 'scrublet':
-#     sc.external.pp.scrublet(_adata, expected_doublet_rate = 0.05, threshold = 0.25,batch_key=batch_key)
-#     sc.external.pl.scrublet_score_distribution(_adata,show=False)
-#     _export("QC_scrublet_score_distribution")
-
-
 def batch_subset(
     adata: sc.AnnData,
     batch_key: str,
@@ -324,7 +294,7 @@ def percent_subset(
     return sc.concat(temp_list)
 
 
-def mad_filter(adata: sc.AnnData, *metric_nmad: tuple[str, int], **kwds) -> sc.AnnData:
+def mad_filter(adata: sc.AnnData, *metric_nmad: Tuple[str, int], **kwds) -> sc.AnnData:
     """
     use median ± n * mad as indicators to filter out outliers
     """
@@ -349,3 +319,52 @@ def mad_filter(adata: sc.AnnData, *metric_nmad: tuple[str, int], **kwds) -> sc.A
         np.logical_or, [[is_outlier(adata, x, y)] for x, y in metric_nmad]
     )
     return adata[~outliers]
+
+
+def cell_phase(adata: sc.AnnData) -> None:
+    tb = sc.external.tl.cyclone(adata)
+    tb.rename(
+        columns={"cc_prediction": "CellPhase", "max_class": "Max_CellPhase"},
+        inplace=True,
+    )
+    adata.obs = pd.merge(adata.obs, tb, left_index=True,
+                         right_index=True, how="left")
+    return None
+
+
+# def doubletMetrics(
+#     adata:sc.AnnData,
+#     *,
+#     od:str='./',
+#     prefix:str='',
+#     suffix:str='',
+#     dpi:int = 300,
+#     formats:Union[str,Tuple[str,...]] = ('pdf','png'),
+#     inplace:bool = True,
+#     ) -> Optional[sc.AnnData]:
+#     """
+#     """
+#     import doubletdetection
+#     _adata = adata if inplace else adata.copy()
+#     _export = functools.partial(sckit.tl.export,formats=formats,od=od,prefix=prefix,suffix=suffix,dpi=dpi)
+#     clf = doubletdetection.BoostClassifier()
+#     # raw_counts is a cells by genes count matrix
+#     _adata.obs['doublet'] = clf.fit(_adata.X.copy()).predict()
+#     # higher means more likely to be doublet
+#     _adata.obs['doublet_score'] = clf.doublet_score()
+#     doubletdetection.plot.convergence(clf,
+#         save=od+'/QC_convergence.pdf',
+#         show=False,
+#         p_thresh=1e-16,
+#         voter_thresh=0.5)
+#     doubletdetection.plot.threshold(clf, save=od+'/QC_DoubletDetection_threshold.pdf', show=False, p_step=6)
+#     sc.pl.violin(_adata,"doublet_score",show=False)
+#     _export("QC_doublet_score")
+
+#     return None if inplace else _adata
+
+# # /* doublet */
+# if doublet_method == 'scrublet':
+#     sc.external.pp.scrublet(_adata, expected_doublet_rate = 0.05, threshold = 0.25,batch_key=batch_key)
+#     sc.external.pl.scrublet_score_distribution(_adata,show=False)
+#     _export("QC_scrublet_score_distribution")
